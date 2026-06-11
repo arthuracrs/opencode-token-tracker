@@ -8,6 +8,8 @@ const pool = new pg.Pool({
   database: process.env.DB_NAME || "tokentracker",
 })
 
+export { pool }
+
 export interface TokenEntry {
   timestamp: string
   modelID: string
@@ -54,11 +56,46 @@ export async function getStats() {
       SUM(input_tokens)  AS input_tokens,
       SUM(output_tokens) AS output_tokens,
       SUM(reasoning_tokens) AS reasoning_tokens,
+      SUM(cache_read)    AS cache_read,
+      SUM(cache_write)   AS cache_write,
       MIN(timestamp)     AS first_usage,
       MAX(timestamp)     AS last_usage
     FROM token_usage
     GROUP BY project_dir
     ORDER BY requests DESC
+  `)
+  return rows
+}
+
+export interface ModelStatsRow {
+  project_dir: string
+  model_id: string
+  provider_id: string
+  requests: number
+  total_tokens: number
+  input_tokens: number
+  output_tokens: number
+  reasoning_tokens: number
+  cache_read: number
+  cache_write: number
+}
+
+export async function getModelStats(): Promise<ModelStatsRow[]> {
+  const { rows } = await pool.query(`
+    SELECT
+      project_dir,
+      model_id,
+      provider_id,
+      COUNT(*)           AS requests,
+      SUM(total_tokens)  AS total_tokens,
+      SUM(input_tokens)  AS input_tokens,
+      SUM(output_tokens) AS output_tokens,
+      SUM(reasoning_tokens) AS reasoning_tokens,
+      SUM(cache_read)    AS cache_read,
+      SUM(cache_write)   AS cache_write
+    FROM token_usage
+    GROUP BY project_dir, model_id, provider_id
+    ORDER BY project_dir, requests DESC
   `)
   return rows
 }

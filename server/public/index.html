@@ -13,95 +13,245 @@
     padding: 2rem;
   }
   h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
-  .cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1rem;
-  }
-  .card {
+  .table-wrap {
+    overflow-x: auto;
     background: #fff;
     border-radius: 8px;
-    padding: 1.25rem;
     box-shadow: 0 1px 3px rgba(0,0,0,.08);
   }
-  .card h2 {
-    font-size: 1rem;
-    color: #666;
-    margin-bottom: .75rem;
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .8125rem;
+  }
+  th, td {
+    text-align: right;
+    padding: .6rem .75rem;
+    white-space: nowrap;
+  }
+  th {
+    background: #fafafa;
     font-weight: 600;
+    color: #555;
     text-transform: uppercase;
     letter-spacing: .03em;
+    font-size: .7rem;
+    border-bottom: 2px solid #e0e0e0;
+    cursor: pointer;
+    user-select: none;
   }
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    padding: .35rem 0;
-    font-size: .875rem;
-    border-bottom: 1px solid #f0f0f0;
+  th:first-child, td:first-child { text-align: left; }
+  th.sorted-asc::after { content: ' \25B2'; }
+  th.sorted-desc::after { content: ' \25BC'; }
+  td { border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+  td.val { font-variant-numeric: tabular-nums; }
+  td.project {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .stat-row:last-child { border-bottom: none; }
-  .stat-label { color: #666; }
-  .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
   .empty {
     text-align: center;
     color: #999;
     padding: 3rem;
     font-size: .9rem;
   }
-  .footer {
-    margin-top: .75rem;
-    font-size: .75rem;
-    color: #aaa;
+  .cost { color: #2e7d32; }
+  .pricing-section {
+    margin-top: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    padding: 1.5rem;
   }
+  .pricing-section h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+  .pricing-section h3 { font-size: .9rem; margin: 1rem 0 .5rem; color: #555; }
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: .5rem;
+  }
+  .pricing-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: .6rem .8rem;
+    font-size: .75rem;
+  }
+  .pricing-card .name { font-weight: 600; font-size: .8rem; margin-bottom: .3rem; }
+  .pricing-card .price-row { display: flex; justify-content: space-between; color: #666; }
+  .calc-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: end;
+    margin-top: 1rem;
+  }
+  .calc-form label { font-size: .75rem; color: #555; display: flex; flex-direction: column; gap: .2rem; }
+  .calc-form input, .calc-form select {
+    padding: .35rem .5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: .8rem;
+    width: 110px;
+  }
+  .calc-form button {
+    padding: .35rem 1rem;
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: .8rem;
+  }
+  .calc-form button:hover { background: #1557b0; }
+  .calc-result { margin-top: .8rem; font-size: .9rem; font-weight: 600; }
 </style>
 </head>
 <body>
 <h1>Token Tracker</h1>
 <div id="app"><div class="empty">Loading...</div></div>
+<div id="costs"></div>
+<div id="pricing"></div>
 <script>
-async function load() {
-  const res = await fetch('/api/stats')
-  const stats = await res.json()
-  const app = document.getElementById('app')
+let data = []
+let sortKey = 'requests'
+let sortDir = 'desc'
 
-  if (!stats.length) {
+async function load() {
+  const [statsRes, costsRes, pricingRes] = await Promise.all([
+    fetch('/api/stats'),
+    fetch('/api/costs'),
+    fetch('/api/pricing'),
+  ])
+  data = await statsRes.json()
+  const costsData = await costsRes.json()
+  const pricing = await pricingRes.json()
+  render()
+  renderCosts(costsData)
+  renderPricing(pricing)
+}
+
+function render() {
+  const app = document.getElementById('app')
+  if (!data.length) {
     app.innerHTML = '<div class="empty">No data yet</div>'
     return
   }
 
-  app.innerHTML = '<div class="cards">' + stats.map(p => `
-    <div class="card">
-      <h2>${esc(p.project_dir)}</h2>
-      <div class="stat-row">
-        <span class="stat-label">Requests</span>
-        <span class="stat-value">${p.requests}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Total tokens</span>
-        <span class="stat-value">${fmt(p.total_tokens)}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Input tokens</span>
-        <span class="stat-value">${fmt(p.input_tokens)}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Output tokens</span>
-        <span class="stat-value">${fmt(p.output_tokens)}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Reasoning tokens</span>
-        <span class="stat-value">${fmt(p.reasoning_tokens)}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">First usage</span>
-        <span class="stat-value">${date(p.first_usage)}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Last usage</span>
-        <span class="stat-value">${date(p.last_usage)}</span>
-      </div>
-    </div>
-  `).join('') + '</div>'
+  const sorted = [...data].sort((a, b) => {
+    const va = a[sortKey] ?? ''
+    const vb = b[sortKey] ?? ''
+    const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const cols = [
+    { key: 'project_dir', label: 'Project', align: 'left', format: esc },
+    { key: 'requests', label: 'Requests', format: v => v },
+    { key: 'total_tokens', label: 'Total tokens', format: fmt },
+    { key: 'input_tokens', label: 'Input', format: fmt },
+    { key: 'output_tokens', label: 'Output', format: fmt },
+    { key: 'reasoning_tokens', label: 'Reasoning', format: fmt },
+    { key: 'cache_read', label: 'Cache read', format: fmt },
+    { key: 'cache_write', label: 'Cache write', format: fmt },
+    { key: 'first_usage', label: 'First usage', format: date },
+    { key: 'last_usage', label: 'Last usage', format: date },
+  ]
+
+  app.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr>${
+      cols.map(c => `<th class="${c.align === 'left' ? '' : 'val'}${sortKey === c.key ? ' sorted-' + sortDir : ''}" data-key="${c.key}">${c.label}</th>`).join('')
+    }</tr></thead>
+    <tbody>${
+      sorted.map(p => `<tr>${
+        cols.map(c => {
+          const val = c.key === 'project_dir' ? c.format(p[c.key]) : c.format(p[c.key])
+          const cls = c.key === 'project_dir' ? 'project' : 'val'
+          return c.align === 'left' ? `<td class="${cls}">${val}</td>` : `<td class="${cls}">${val}</td>`
+        }).join('')
+      }</tr>`).join('')
+    }</tbody>
+  </table></div>`
+
+  document.querySelectorAll('th').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key
+      if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc'
+      else { sortKey = key; sortDir = 'desc' }
+      render()
+    })
+  })
+}
+
+function renderCosts(costsData) {
+  const el = document.getElementById('costs')
+  const { perModel, perProject } = costsData
+  const projects = Object.entries(perProject).sort((a, b) => b[1].total_cost - a[1].total_cost)
+
+  let html = `<div class="pricing-section">
+    <h2>Estimated Costs (from usage data)</h2>`
+
+  if (!projects.length) {
+    html += '<p style="color:#999;font-size:.85rem">No usage data yet.</p>'
+  } else {
+    html += `<div class="table-wrap"><table>
+      <thead><tr>
+        <th style="text-align:left">Project</th>
+        <th>Requests</th>
+        <th>Total tokens</th>
+        <th>Estimated cost</th>
+      </tr></thead>
+      <tbody>`
+    for (const [proj, p] of projects) {
+      html += `<tr>
+        <td class="project">${esc(proj)}</td>
+        <td class="val">${fmt(p.requests)}</td>
+        <td class="val">${fmt(p.total_tokens)}</td>
+        <td class="val cost">$${p.total_cost.toFixed(4)}</td>
+      </tr>`
+
+      const models = perModel.filter(m => m.project_dir === proj)
+      for (const m of models) {
+        html += `<tr style="font-size:.7rem;color:#888">
+          <td style="padding-left:1.5rem">${esc(m.model_id)} (${esc(m.provider_id)})</td>
+          <td class="val">${fmt(m.requests)}</td>
+          <td class="val">${fmt(m.total_tokens)}</td>
+          <td class="val">${m.cost != null ? '$' + m.cost.toFixed(6) : '—'}</td>
+        </tr>`
+      }
+    }
+    html += `</tbody></table></div>`
+  }
+
+  html += `</div>`
+  el.innerHTML = html
+}
+
+function renderPricing(pricing) {
+  const el = document.getElementById('pricing')
+  const providers = pricing.providers
+  const prices = pricing.prices
+
+  const modelCards = Object.entries(providers).flatMap(([provider, models]) =>
+    models.map(mid => {
+      const p = prices[mid]
+      if (!p) return ''
+      return `<div class="pricing-card">
+        <div class="name">${esc(mid)} <span style="color:#999;font-weight:400">(${esc(provider)})</span></div>
+        <div class="price-row"><span>Input</span><span>$${p.input.toFixed(4)}/1M</span></div>
+        <div class="price-row"><span>Output</span><span>$${p.output.toFixed(4)}/1M</span></div>
+        <div class="price-row"><span>Cache read</span><span>$${p.cacheRead.toFixed(4)}/1M</span></div>
+        ${p.cacheWrite ? `<div class="price-row"><span>Cache write</span><span>$${p.cacheWrite.toFixed(4)}/1M</span></div>` : ''}
+      </div>`
+    })
+  )
+
+  el.innerHTML = `<div class="pricing-section">
+    <h2>Model Pricing (Go Provider)</h2>
+    <div class="pricing-grid">${modelCards.join('')}</div>
+  </div>`
 }
 
 function fmt(n) { return Number(n).toLocaleString() }
