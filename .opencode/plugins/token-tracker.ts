@@ -1,8 +1,5 @@
-import { appendFile } from "node:fs/promises"
-import { join } from "node:path"
 import type { Plugin } from "@opencode-ai/plugin"
 
-const LOG_FILE = "token-usage.jsonl"
 const CENTRAL_URL = process.env.TOKEN_TRACKER_URL || "http://localhost:3838"
 
 export const TokenTrackerPlugin: Plugin = async ({ directory }) => {
@@ -47,7 +44,6 @@ export const TokenTrackerPlugin: Plugin = async ({ directory }) => {
         }
 
         postEntry(entry)
-        await appendFile(join(directory, LOG_FILE), JSON.stringify(entry) + "\n")
       }
     },
   }
