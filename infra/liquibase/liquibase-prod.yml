@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  liquibase-prod-k8s:
+    image: liquibase/liquibase:4.29-alpine
+    volumes:
+      - ./changelog:/liquibase/changelog
+    command: >
+      --url="jdbc:postgresql://host.docker.internal:5432/${POSTGRES_DB}?user=${POSTGRES_USER}&password=${POSTGRES_PASSWORD}"
+      --searchPath=/liquibase/changelog
+      --changeLogFile=db.changelog-master.yaml
+      update

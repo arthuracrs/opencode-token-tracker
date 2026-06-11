@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: token-tracker-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: tokentracker
+      POSTGRES_PASSWORD: tokentracker
+      POSTGRES_DB: tokentracker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
