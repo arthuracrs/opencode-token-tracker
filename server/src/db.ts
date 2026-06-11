@@ -63,10 +63,3 @@ export async function getStats() {
   return rows
 }
 
-export async function getRecent(limit = 50) {
-  const { rows } = await pool.query(
-    `SELECT * FROM token_usage ORDER BY timestamp DESC LIMIT $1`,
-    [limit],
-  )
-  return rows
-}

@@ -9,7 +9,20 @@ services:
       POSTGRES_PASSWORD: tokentracker
       POSTGRES_DB: tokentracker
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data
 
-volumes:
-  pgdata:
+  # To re-run later if you add new changesets, just run: docker compose up liquibase
+  liquibase:
+    build: ./liquibase
+    volumes:
+      - ./liquibase/changelog:/liquibase/changelog
+    command: >
+      --url=jdbc:postgresql://postgres:5432/tokentracker
+      --username=tokentracker
+      --password=tokentracker
+      --searchPath=/liquibase/changelog
+      --changeLogFile=db.changelog-master.yaml
+      update
+    depends_on:
+      postgres:
+        condition: service_started
