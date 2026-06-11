@@ -10,6 +10,11 @@ services:
       POSTGRES_DB: tokentracker
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tokentracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # To re-run later if you add new changesets, just run: docker compose up liquibase
   liquibase:
@@ -25,4 +30,21 @@ services:
       update
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
+
+  server:
+    build: ../server
+    container_name: token-tracker-server
+    ports:
+      - "3838:3838"
+    environment:
+      PORT: "3838"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: tokentracker
+      DB_PASSWORD: tokentracker
+      DB_NAME: tokentracker
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+    restart: unless-stopped
